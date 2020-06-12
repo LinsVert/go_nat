@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+//基本的本地监听服务
+
 func main() {
 	listen, _ := net.Listen("tcp", ":10087")
 	fmt.Println("start on 10087")
