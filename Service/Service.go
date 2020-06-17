@@ -3,76 +3,123 @@ package Service
 import (
 	"fmt"
 	"net"
+	"runtime"
 	"strings"
 	"time"
 )
 
 //定义基本结构体
 type Service struct {
-	conn        net.Conn
-	recv        chan []byte
-	sed         chan []byte
-	writeFlag   chan bool
-	er          chan bool
-	serviceType int //0 本地服务 1 client 2 server 3 远程监听服务
+	Conn        net.Conn
+	Recv        chan []byte
+	Sed         chan []byte
+	WriteFlag   chan bool
+	Er          chan bool
+	ServiceType int //0 本地服务 1 client 2 server 3 远程监听服务
 }
 
-func (server *Service) ping() {
-	var pingStr = []byte("ping " + time.Now().String())
-	_, _ = server.conn.Write(pingStr)
+func (server *Service) Ping() {
+	var pingStr = []byte("Ping " + time.Now().String())
+	_, _ = server.Conn.Write(pingStr)
 }
 
-func (server *Service) pong() {
-	var pongStr = []byte("pong " + time.Now().String())
-	_, _ = server.conn.Write(pongStr)
+func (server *Service) Pong() {
+	var pongStr = []byte("Pong " + time.Now().String())
+	_, _ = server.Conn.Write(pongStr)
 }
 
-func (server *Service) write() {
+func (server *Service) Write() {
 	for {
 		var buf = make([]byte, 65535)
 		select {
-		case buf = <-server.sed:
-			_, _ = server.conn.Write(buf)
-		case <-server.writeFlag:
+		case buf = <-server.Sed:
+			lens := len(buf)
+			n, err := server.Conn.Write(buf)
+			if server.ServiceType == 1 && lens != n {
+				fmt.Println("write data", n, "get len", lens)
+				if err != nil {
+					fmt.Println(err.Error(), "write to server error")
+				}
+			}
+		case <-server.WriteFlag:
 			//当读断开时 该获取模式不再写
 			break
 		}
 	}
 }
 
-func (server *Service) read() {
-	if server.serviceType == 1 {
-		_ = server.conn.SetReadDeadline(time.Now().Add(time.Second * 20))
-	} else if server.serviceType == 3 {
-		_ = server.conn.SetReadDeadline(time.Now().Add(time.Second * 1))
+func (server *Service) Read() {
+	if server.ServiceType == 1 {
+		_ = server.Conn.SetReadDeadline(time.Now().Add(time.Second * 20))
+	} else if server.ServiceType == 3 {
+		_ = server.Conn.SetReadDeadline(time.Now().Add(time.Second * 1))
 	}
 	var isHeart = false
+	var finishRead = 0
+	var limit = 100
 	for {
 		var buf = make([]byte, 65535)
-		n, err := server.conn.Read(buf)
-		if server.serviceType == 3 {
-			_ = server.conn.SetReadDeadline(time.Time{})
+		fmt.Println("wait data in ", server.ServiceType)
+		n, err := server.Conn.Read(buf)
+		if server.ServiceType == 0 {
+			fmt.Println("recv data on ", n, server.ServiceType)
+		}
+		//fmt.Println("recv data on ", n, server.ServiceType)
+		if server.ServiceType == 3 {
+			_ = server.Conn.SetReadDeadline(time.Time{})
 		}
 		if err != nil {
-			if strings.Contains(err.Error(), "timeout") && !isHeart && server.serviceType == 1 {
-				_ = server.conn.SetReadDeadline(time.Now().Add(time.Second * 3))
+			if strings.Contains(err.Error(), "timeout") && !isHeart && server.ServiceType == 1 {
+				_ = server.Conn.SetReadDeadline(time.Now().Add(time.Second * 3))
 				fmt.Println(err.Error())
-				server.ping()
+				server.Ping()
 				isHeart = true
 				continue
 			}
-			server.writeFlag <- true
-			server.er <- true
+			if server.ServiceType == 1 {
+				server.Recv <- []byte("***")
+			}
+			if server.ServiceType == 0 && err.Error() == "EOF" && finishRead < limit {
+				//当数据请求一直空是 循序判空n次
+				fmt.Println(err.Error(), "test1", finishRead)
+				finishRead++
+				continue
+			}
+			server.WriteFlag <- true
+			server.Er <- true
 			break
 		}
-		if string(buf[:4]) == "pong" && server.serviceType == 1 {
+		if string(buf[:4]) == "Pong" && server.ServiceType == 1 {
 			isHeart = false
-			_ = server.conn.SetReadDeadline(time.Now().Add(time.Second * 20))
+			_ = server.Conn.SetReadDeadline(time.Now().Add(time.Second * 20))
 			continue
-		} else if string(buf[:4]) == "ping" {
-			server.pong()
+		} else if string(buf[:4]) == "Ping" {
+			server.Pong()
 			continue
 		}
-		server.recv <- buf[:n]
+		server.Recv <- buf[:n]
+	}
+}
+
+func Change(service Service, next Service) {
+	for {
+		var buf = make([]byte, 10240)
+		select {
+		case buf = <-service.Recv:
+			if string(buf[:3]) == "***" {
+				continue
+			}
+			next.Sed <- buf
+		case buf = <-next.Recv:
+			service.Sed <- buf
+		case <-service.Er:
+			_ = service.Conn.Close()
+			_ = next.Conn.Close()
+			runtime.Goexit()
+		case <-next.Er:
+			_ = service.Conn.Close()
+			_ = next.Conn.Close()
+			runtime.Goexit()
+		}
 	}
 }

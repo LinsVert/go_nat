@@ -82,12 +82,18 @@ func handleS(uR chan []byte, sR chan []byte, sRS chan []byte, uRS chan []byte) {
 }
 
 func readS(conn net.Conn, read chan []byte, isU bool, er chan bool, writeFlag chan bool) {
+	if isU {
+		_ = conn.SetReadDeadline(time.Now().Add(time.Second * 1))
+	}
 	for {
-		if isU {
-			_ = conn.SetReadDeadline(time.Now().Add(time.Second * 1))
+		if !isU {
+			_ = conn.SetReadDeadline(time.Now().Add(time.Second * 40))
 		}
-		var buf = make([]byte, 10240)
+		var buf = make([]byte, 65535)
 		n, err := conn.Read(buf)
+		if isU {
+			_ = conn.SetReadDeadline(time.Time{})
+		}
 		fmt.Println("read", conn.LocalAddr().String())
 		if n < 100 && n > 0 {
 			fmt.Println("Message", string(buf))
@@ -99,11 +105,9 @@ func readS(conn net.Conn, read chan []byte, isU bool, er chan bool, writeFlag ch
 			writeFlag <- true
 			break
 		}
-		if isU {
-			_ = conn.SetReadDeadline(time.Time{})
-		}
-		if string(buf[:4]) == "ping" {
-			_, _ = conn.Write([]byte("pong " + time.Now().String()))
+
+		if string(buf[:4]) == "Ping" {
+			_, _ = conn.Write([]byte("Pong " + time.Now().String()))
 			continue
 		}
 		fmt.Println(n, "read at", isU)
@@ -113,7 +117,7 @@ func readS(conn net.Conn, read chan []byte, isU bool, er chan bool, writeFlag ch
 
 func writeS(conn net.Conn, read chan []byte, isU bool, writeFlag chan bool) {
 	for {
-		var buf = make([]byte, 10240)
+		var buf = make([]byte, 65535)
 		//if isU {
 		//	_ = conn.SetWriteDeadline(time.Now().Add(time.Second * 10))
 		//}
@@ -126,7 +130,7 @@ func writeS(conn net.Conn, read chan []byte, isU bool, writeFlag chan bool) {
 			fmt.Println(n, "write at", isU)
 			if err != nil {
 				fmt.Println("close write2")
-				_ = conn.Close()
+				//_ = conn.Close()
 				break
 			}
 			//if isU {
