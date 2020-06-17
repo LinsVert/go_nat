@@ -32,7 +32,6 @@ func handle(server Service.Service, run chan bool) {
 	run <- true
 	dial, _ := net.Dial("tcp", ":8000")
 	fmt.Println("dial conn success2", dial.RemoteAddr().String())
-	//fmt.Println("dial conn data", string(recv))
 	recvL := make(chan []byte)
 	sed := make(chan []byte)
 	er := make(chan bool, 1)     //错误管道 2端
@@ -42,6 +41,5 @@ func handle(server Service.Service, run chan bool) {
 	go local.Read()
 	go local.Write()
 	local.Sed <- recv
-	fmt.Println("in ", "C")
 	Service.Change(server, local)
 }

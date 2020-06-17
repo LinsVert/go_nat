@@ -13,7 +13,7 @@ func Run() {
 	fmt.Println("start on 10086")
 	for {
 		var connChan = make(chan net.Conn)
-		go getConn(userL, connChan)
+		go Service.GetConn(userL, connChan)
 		recv := make(chan []byte)
 		sed := make(chan []byte)
 		er := make(chan bool, 1)     //错误管道 2端
@@ -36,9 +36,4 @@ func Run() {
 		go user.Write()
 		go Service.Change(client, user)
 	}
-}
-
-func getConn(listener net.Listener, connChan chan net.Conn) {
-	conn, _ := listener.Accept()
-	connChan <- conn
 }

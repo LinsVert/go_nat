@@ -123,3 +123,8 @@ func Change(service Service, next Service) {
 		}
 	}
 }
+
+func GetConn(listener net.Listener, connChan chan net.Conn) {
+	conn, _ := listener.Accept()
+	connChan <- conn
+}
