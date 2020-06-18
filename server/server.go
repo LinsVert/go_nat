@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"go_nat_git/Service"
 	"net"
+	"runtime"
 	"time"
 )
 
 func Run() {
-	listen, _ := net.Listen("tcp", ":10086")
-	userL, _ := net.Listen("tcp", ":10087")
-	fmt.Println("start on 10086")
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	var serverConfig = Service.GetServerConfig()
+	listen, _ := net.Listen(serverConfig.ServiceListenConnect, ":"+serverConfig.ServerListenPort)
+	userL, _ := net.Listen(serverConfig.UserListenConnect, ":"+serverConfig.UserListenPort)
+	fmt.Println("start on", serverConfig.ServerListenPort, serverConfig.UserListenPort)
 	for {
 		var connChan = make(chan net.Conn)
 		go Service.GetConn(userL, connChan)

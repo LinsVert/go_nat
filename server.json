@@ -1,0 +1,6 @@
+{
+  "server_listen_port" : "10086",
+  "service_listen_connect" : "tcp",
+  "user_listen_port" : "10087",
+  "user_listen_connect" : "tcp"
+}

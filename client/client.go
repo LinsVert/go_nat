@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"go_nat_git/Service"
 	"net"
+	"runtime"
 )
 
 func Run() {
-	var host = "127.0.0.1"
-	//var host = "111.231.86.196"
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	var clientConfig = Service.GetClientConfig()
 	for {
-		conn, _ := net.Dial("tcp", host+":10086")
+		conn, _ := net.Dial(clientConfig.RemoteConnect, net.JoinHostPort(clientConfig.RemoteAddress, clientConfig.RemotePort))
 		fmt.Println("dial conn success", conn.RemoteAddr().String())
 		recv := make(chan []byte)
 		sed := make(chan []byte)
@@ -21,16 +22,20 @@ func Run() {
 		var server = Service.Service{Conn: conn, Recv: recv, Sed: sed, WriteFlag: writeFlag, Er: er, ServiceType: clientType}
 		go server.Read()
 		go server.Write()
-		go handle(server, run)
+		go handle(server, run, clientConfig)
 		<-run
 	}
 }
 
-func handle(server Service.Service, run chan bool) {
+func handle(server Service.Service, run chan bool, clientConfig Service.ClientConfig) {
 	var recv = make([]byte, 10240)
 	recv = <-server.Recv
 	run <- true
-	dial, _ := net.Dial("tcp", ":8000")
+	dial, err := net.Dial(clientConfig.LocalConnect, net.JoinHostPort(clientConfig.LocalAddress, clientConfig.LocalPort))
+	if err != nil {
+		fmt.Println("Can't connect local server", err.Error())
+		runtime.Goexit()
+	}
 	fmt.Println("dial conn success2", dial.RemoteAddr().String())
 	recvL := make(chan []byte)
 	sed := make(chan []byte)

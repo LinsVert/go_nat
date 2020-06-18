@@ -59,10 +59,10 @@ func (server *Service) Read() {
 	var limit = 100
 	for {
 		var buf = make([]byte, 65535)
-		fmt.Println("wait data in ", server.ServiceType)
+		fmt.Println("wait data in ", server.ServiceType, server.Conn.LocalAddr().String(), server.Conn.RemoteAddr().String())
 		n, err := server.Conn.Read(buf)
 		if server.ServiceType == 0 {
-			fmt.Println("recv data on ", n, server.ServiceType)
+			fmt.Println("recv data on ", n, server.ServiceType, server.Conn.LocalAddr().String(), server.Conn.RemoteAddr().String())
 		}
 		//fmt.Println("recv data on ", n, server.ServiceType)
 		if server.ServiceType == 3 {
@@ -81,9 +81,9 @@ func (server *Service) Read() {
 			}
 			if server.ServiceType == 0 && err.Error() == "EOF" && finishRead < limit {
 				//当数据请求一直空是 循序判空n次
-				fmt.Println(err.Error(), "test1", finishRead)
+				fmt.Println(err.Error(), "test1", finishRead, server.Conn.LocalAddr().String(), server.Conn.RemoteAddr().String())
 				finishRead++
-				continue
+				//continue
 			}
 			server.WriteFlag <- true
 			server.Er <- true
@@ -103,20 +103,24 @@ func (server *Service) Read() {
 
 func Change(service Service, next Service) {
 	for {
-		var buf = make([]byte, 10240)
+		var buf = make([]byte, 65535)
 		select {
 		case buf = <-service.Recv:
 			if string(buf[:3]) == "***" {
 				continue
 			}
+			fmt.Println("Change Data in Service S", service.ServiceType, service.Conn.LocalAddr().String(), service.Conn.RemoteAddr().String())
 			next.Sed <- buf
 		case buf = <-next.Recv:
+			fmt.Println("Change Data in Next N", next.ServiceType, next.Conn.LocalAddr().String(), next.Conn.RemoteAddr().String())
 			service.Sed <- buf
 		case <-service.Er:
+			fmt.Println("close in this serviceSSSSSS:", service.ServiceType, service.Conn.LocalAddr().String(), service.Conn.RemoteAddr().String())
 			_ = service.Conn.Close()
 			_ = next.Conn.Close()
 			runtime.Goexit()
 		case <-next.Er:
+			fmt.Println("close in this nextNNNNN:", next.ServiceType, next.Conn.LocalAddr().String(), next.Conn.RemoteAddr().String())
 			_ = service.Conn.Close()
 			_ = next.Conn.Close()
 			runtime.Goexit()
