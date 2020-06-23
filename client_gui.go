@@ -78,7 +78,7 @@ func addRemoteServer(box *widget.Box, connectData *[]string, remoteServer *widge
 	box.Append(group)
 }
 
-func addStartButton(box *widget.Box, a fyne.App, connectData *[]string, localServer *widget.Entry, localPort *widget.Entry, remoteServer *widget.Entry, remotePort *widget.Entry, w fyne.Window) {
+func addStartButton(box *widget.Box, a fyne.App, connectData *[]string, localServer *widget.Entry, localPort *widget.Entry, remoteServer *widget.Entry, remotePort *widget.Entry, w fyne.Window) *widget.Button {
 	var button = widget.NewButton("Start", func() {
 		var localAddr = localServer.Text
 		var localPort = localPort.Text
@@ -88,7 +88,9 @@ func addStartButton(box *widget.Box, a fyne.App, connectData *[]string, localSer
 		notification := fyne.NewNotification("Start Client", notificationStr)
 		Service.SetClientConfig(localAddr, localPort, remoteAddr, remotePort)
 		a.SendNotification(notification)
-		client.Run()
+		go client.Run()
+		w.Hide()
 	})
 	box.Append(button)
+	return button
 }
