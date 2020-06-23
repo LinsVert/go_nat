@@ -82,6 +82,8 @@ func (server *Service) Read() {
 			if server.ServiceType == 0 && err.Error() == "EOF" && finishRead < limit {
 				//当数据请求一直空是 循序判空n次
 				fmt.Println(err.Error(), "test1", finishRead, server.Conn.LocalAddr().String(), server.Conn.RemoteAddr().String())
+				//存在数据未发送完的情况 先停个2s等数据结束后再断开
+				time.Sleep(time.Second * 2)
 				finishRead++
 				//continue
 			}

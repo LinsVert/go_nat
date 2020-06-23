@@ -34,6 +34,13 @@ func GetClientConfig() ClientConfig {
 	println(string(buf))
 	return clientConfig
 }
+func SetClientConfig(localAddr string, localPort string, remoteAddr string, remotePort string) {
+	var clientConfig = ClientConfig{LocalAddress: localAddr, LocalPort: localPort, RemoteAddress: remoteAddr, RemotePort: remotePort}
+	clientConfig.LocalConnect = "tcp"
+	clientConfig.RemoteConnect = "tcp"
+	clientConfigJson, _ := json.Marshal(clientConfig)
+	writeFile("./client.json", clientConfigJson)
+}
 func GetServerConfig() ServerConfig {
 	var serverConfigFile = "./server.json"
 	var buf = readFile(serverConfigFile)
@@ -61,4 +68,21 @@ func readFile(filePath string) []byte {
 		return []byte("")
 	}
 	return buf[:n]
+}
+
+func writeFile(filePath string, data []byte) bool {
+	file, err := os.OpenFile(filePath, os.O_RDWR, 0777)
+	if err != nil {
+		fmt.Println("Failed, ", err.Error())
+	}
+	err3 := os.Chmod(filePath, 0777)
+	if err3 != nil {
+		fmt.Println("Failed, ", err3.Error())
+	}
+	n, err2 := file.Write(data)
+	if err2 != nil {
+		fmt.Println("Failed, ", err2.Error())
+	}
+	fmt.Println(n)
+	return true
 }
